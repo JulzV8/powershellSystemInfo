@@ -1,36 +1,25 @@
 # 1: Traigo el GUID del registro, si existe lo asigno, caso contrario se crea y se asigna al registro
-try{
-  $registryGuid = Get-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion -Name Guid
-  Write-Output "Couldn't access registry"
-}
-catch{
+try{$registryGuid = Get-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion -Name Guid -ErrorAction Stop}
+catch{Write-Output "GUID did not exist or couldn't access registry."}
 
-}
-if ( !$registryGuid )
-{
+if ( !$registryGuid ){
   $guid = New-Guid
   $guid =  $guid.guid
   try {
-    New-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion -Name Guid -PropertyType String -Value $PSHome
-    Set-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion -Name Guid -Value $guid
+    New-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion -Name Guid -PropertyType String -Value $PSHome -ErrorAction Stop
+    Set-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion -Name Guid -Value $guid -ErrorAction Stop
     Write-Output "GUID added to registry"
   }
-  catch{
-    Write-Output "Couldn't access registry"
-  }
+  catch{Write-Output "Couldn't access registry"}
 }
 else {
-  $guid=$registryGuid.guid
-}
+  Write-Output "GUID was found on registry"
+  $guid=$registryGuid.guid}
 # 2: Veo si se reconoce teclado y mouse conectado
 $hasMouse    = $false
 $hasKeyboard = $false
-if (get-WmiObject win32_PointingDevice) {
-  $hasMouse = $true
-}
-if (get-WmiObject win32_Keyboard) {
-  $hasKeyboard = $true
-}
+if (get-WmiObject win32_PointingDevice) {$hasMouse = $true}
+if (get-WmiObject win32_Keyboard) {$hasKeyboard = $true}
 # 3: Traigo la informacion
 $cpu          = Get-CimInstance -ClassName Win32_Processor | Select-Object -Property name
 $manufacturer = Get-CimInstance -ClassName  Win32_ComputerSystem | Select-Object -Property manufacturer,model
@@ -54,15 +43,13 @@ $systemInfo = [PSCustomObject]@{
 }
 # 5: Paso el objeto a JSON y lo guardo. Además, guardo una copia del GUID en la carpeta C:\Users como archivo .json
 $systemInfo = $systemInfo | ConvertTo-Json 
-$systemInfo | Out-File ".\systemInfo.json"
+# $systemInfo | Out-File ".\systemInfo.json"
 try{
-  $systemInfo.guid  | ConvertTo-Json | Out-File "C:\Users\guid.json"
-  Write-Output "Info stored at C:\Users\guid.json"
+  $systemInfo.guid  | ConvertTo-Json | Out-File "C:\Users\guid.json" -ErrorAction Stop
+  Write-Output "Info stored at C:\Users\guid.json" -ErrorAction Stop
 }
-catch{
-  Write-Output "Couldn't store info"
-}
-Write-Output $guid
+catch{Write-Output "Couldn't store info"}
+Write-Output "GUID: "$guid
 # 6:Subo el resultado a la API
 $Params = @{
   Method = "Put"
@@ -71,7 +58,7 @@ $Params = @{
   ContentType = "application/json"
 }
 try{
-  Invoke-RestMethod @Params
+  Invoke-RestMethod @Params -ErrorAction Stop
   Write-Output "Info uploaded to the database"
 }
 catch{
